@@ -14,8 +14,8 @@ void main() {
           primarySwatch: Colors.pink,
           useMaterial3: true,
         ),
-        home: const LoginPage(),
+        home: const LoginPage(), 
       ),
     ),
   );
-}
+} 

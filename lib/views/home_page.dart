@@ -2,22 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/app_viewmodel.dart';
 import 'login_page.dart';
+import 'diario_page.dart';
+import 'tarefa_page.dart';
+import 'personagem_page.dart'; // <--- IMPORT OBRIGATÓRIO PARA ABRIR O PET
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+  final String nomeDoGato;
+
+  const HomePage({super.key, required this.nomeDoGato});
 
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<AppViewModel>();
 
-    const Color miniPink = Color(0xFFF9D0DE);      
-    const Color lavenderPink = Color(0xFFF8B0C8); 
-    const Color tickleMePink = Color(0xFFF790B2); 
-    const Color beaver = Color(0xFFAF7F73);       
+    const Color tickleMePink = Color(0xFFF790B2);
+    const Color beaver = Color(0xFFAF7F73);
 
     return Scaffold(
       body: Stack(
         children: [
+          // Fundo
           Container(
             width: double.infinity,
             height: double.infinity,
@@ -32,6 +36,7 @@ class HomePage extends StatelessWidget {
           SafeArea(
             child: Column(
               children: [
+                // Placar de Peixinhos
                 Padding(
                   padding: const EdgeInsets.only(top: 30, bottom: 20),
                   child: Container(
@@ -39,12 +44,8 @@ class HomePage extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.9),
                       borderRadius: BorderRadius.circular(30),
-                      boxShadow: [
-                        BoxShadow(
-                          color: lavenderPink.withOpacity(0.5),
-                          blurRadius: 15,
-                          offset: const Offset(0, 5),
-                        )
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 5))
                       ],
                     ),
                     child: Row(
@@ -72,6 +73,7 @@ class HomePage extends StatelessWidget {
 
                 const SizedBox(height: 10),
 
+                // Menu de Opções
                 Expanded(
                   child: ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 25),
@@ -80,10 +82,13 @@ class HomePage extends StatelessWidget {
                         titulo: "Escrever no Diário",
                         subtitulo: "Recompensa: 10 peixinhos",
                         icone: Icons.auto_stories_outlined,
-                        corFundo: Colors.white.withOpacity(0.9), // Leve transparência para combinar
+                        corFundo: Colors.white.withOpacity(0.9),
                         corConteudo: beaver,
                         aoClicar: () {
-                          print("Navegando para Diário...");
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const DiarioPage()),
+                          );
                         },
                       ),
                       _botaoMenu(
@@ -93,23 +98,31 @@ class HomePage extends StatelessWidget {
                         corFundo: Colors.white.withOpacity(0.9),
                         corConteudo: beaver,
                         aoClicar: () {
-                          print("Navegando para Missões...");
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const TarefaPage()),
+                          );
                         },
                       ),
                       _botaoMenu(
-                        titulo: "Ver meu Gatinho",
+                        titulo: "Ver $nomeDoGato", 
                         subtitulo: "Acesse e cuide do seu pet",
                         icone: Icons.pets_outlined,
-                        corFundo: tickleMePink.withOpacity(0.95), // Botão de destaque do mascote
+                        corFundo: tickleMePink.withOpacity(0.95),
                         corConteudo: Colors.white,
+                        // NAVEGAÇÃO CORRIGIDA ABAIXO:
                         aoClicar: () {
-                          print("Navegando para o Pet...");
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const PersonagemPage()),
+                          );
                         },
                       ),
                     ],
                   ),
                 ),
 
+                // Botão Sair
                 Padding(
                   padding: const EdgeInsets.only(bottom: 25),
                   child: TextButton.icon(
@@ -122,11 +135,7 @@ class HomePage extends StatelessWidget {
                     icon: const Icon(Icons.logout, color: beaver, size: 20),
                     label: const Text(
                       "Sair do App",
-                      style: TextStyle(
-                        color: beaver,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+                      style: TextStyle(color: beaver, fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                   ),
                 ),
@@ -157,44 +166,20 @@ class HomePage extends StatelessWidget {
             color: corFundo,
             borderRadius: BorderRadius.circular(25),
             boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              )
+              BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))
             ],
           ),
           child: Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: corConteudo.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icone, color: corConteudo, size: 30),
-              ),
+              Icon(icone, color: corConteudo, size: 30),
               const SizedBox(width: 18),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      titulo,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: corConteudo,
-                      ),
-                    ),
+                    Text(titulo, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: corConteudo)),
                     const SizedBox(height: 4),
-                    Text(
-                      subtitulo,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: corConteudo.withOpacity(0.7),
-                      ),
-                    ),
+                    Text(subtitulo, style: TextStyle(fontSize: 13, color: corConteudo.withOpacity(0.7))),
                   ],
                 ),
               ),

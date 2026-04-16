@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../viewmodels/app_viewmodel.dart';
-import 'home_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'cadastro_usuario_page.dart';
+import 'intro_page.dart';
+import 'home_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -15,8 +15,33 @@ class _LoginPageState extends State<LoginPage> {
   final _nomeController = TextEditingController();
   final _senhaController = TextEditingController();
   
-  final Color corRosaForte = const Color(0xFFE57373);
-  final Color corRosaSuave = const Color(0xFFFFB3B3);
+  final Color tickleMePink = const Color(0xFFF790B2);
+  final Color beaver = const Color(0xFFAF7F73);
+
+  // Função que gerencia o login e a persistência
+  Future<void> _fazerLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Verifica se já passou pela introdução antes
+    bool isFirstTime = prefs.getBool('isFirstTime') ?? true;
+
+    if (!mounted) return;
+
+    if (isFirstTime) {
+      // Se for a primeira vez, vai pra intro
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const IntroPage()),
+      );
+    } else {
+      // Se não for a primeira vez, recupera o nome salvo e vai direto para a Home
+      String nomeSalvo = prefs.getString('petName') ?? "Gatinho";
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => HomePage(nomeDoGato: nomeSalvo)),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,70 +58,39 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
-
           Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(30.0),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo ou Título Estilizado
                   const Text(
-                    "Soft Life Quest",
+                    "DearDiary",
                     style: TextStyle(
                       fontSize: 48,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w300,
                       color: Colors.white,
                       shadows: [Shadow(color: Colors.black26, blurRadius: 10)],
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    "Sua jornada começa aqui",
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
-                  ),
                   const SizedBox(height: 60),
-
-                  _campoLogin(
-                    controller: _nomeController,
-                    label: "Usuário",
-                    icon: Icons.person_outline,
-                  ),
+                  _campoLogin(controller: _nomeController, label: "Usuário", icon: Icons.person_outline),
                   const SizedBox(height: 20),
-
-                  _campoLogin(
-                    controller: _senhaController,
-                    label: "Senha",
-                    icon: Icons.lock_outline,
-                    obscureText: true,
-                  ),
+                  _campoLogin(controller: _senhaController, label: "Senha", icon: Icons.lock_outline, obscureText: true),
                   const SizedBox(height: 40),
-
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: corRosaForte,
+                      backgroundColor: tickleMePink,
                       foregroundColor: Colors.white,
                       minimumSize: const Size(double.infinity, 55),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      elevation: 5,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
                     ),
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (context) => const HomePage()),
-                      );
-                    },
+                    onPressed: _fazerLogin, // Chama a função lógica acima
                     child: const Text("ENTRAR", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   ),
-
                   const SizedBox(height: 20),
-
                   TextButton(
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const CadastroUsuarioPage()),
-                      );
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const CadastroUsuarioPage()));
                     },
                     child: const Text(
                       "Não tem uma conta? Cadastre-se",
@@ -112,27 +106,19 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _campoLogin({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    bool obscureText = false,
-  }) {
+  Widget _campoLogin({required TextEditingController controller, required String label, required IconData icon, bool obscureText = false}) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.white.withOpacity(0.9),
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5)),
-        ],
       ),
       child: TextField(
         controller: controller,
         obscureText: obscureText,
+        style: TextStyle(color: beaver),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: TextStyle(color: corRosaSuave),
-          prefixIcon: Icon(icon, color: corRosaSuave),
+          prefixIcon: Icon(icon, color: tickleMePink),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
         ),
