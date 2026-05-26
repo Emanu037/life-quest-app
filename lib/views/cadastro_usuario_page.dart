@@ -20,6 +20,14 @@ class _CadastroUsuarioPageState extends State<CadastroUsuarioPage> {
   final Color corRosaSuave = const Color(0xFFFFB3B3);
 
   @override
+  void dispose() {
+    _nomeController.dispose();
+    _senhaController.dispose();
+    _confirmarController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
@@ -95,18 +103,20 @@ class _CadastroUsuarioPageState extends State<CadastroUsuarioPage> {
                         minimumSize: const Size(double.infinity, 55),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                       ),
-                      onPressed: () {
+                      onPressed: () async {
                         if (_formKey.currentState!.validate()) {
-                          context.read<AppViewModel>().cadastrarUsuario(
+                          // Chamada assíncrona do ViewModel corrigida
+                          await context.read<AppViewModel>().cadastrarUsuario(
                             _nomeController.text,
                             _senhaController.text,
                           );
                           
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Cadastro realizado com sucesso!")),
-                          );
-
-                          Navigator.pop(context);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Cadastro realizado com sucesso!")),
+                            );
+                            Navigator.pop(context);
+                          }
                         }
                       },
                       child: const Text("CADASTRAR", style: TextStyle(fontWeight: FontWeight.bold)),
@@ -134,23 +144,45 @@ class _CadastroUsuarioPageState extends State<CadastroUsuarioPage> {
     Widget? suffixIcon,
     String? Function(String?)? validator,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 5, offset: const Offset(0, 2))],
-      ),
-      child: TextFormField(
-        controller: controller,
-        obscureText: obscureText,
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: Icon(icon, color: corRosaSuave),
-          suffixIcon: suffixIcon,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+    // CORREÇÃO: O estilo visual de fundo foi movido para o próprio InputDecoration,
+    // permitindo que o texto de erro seja renderizado abaixo do campo sem quebras de layout.
+    return TextFormField(
+      controller: controller,
+      obscureText: obscureText,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: Colors.grey[600]),
+        prefixIcon: Icon(icon, color: corRosaSuave),
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        // Mantém as bordas arredondadas e limpas do seu design
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide.none,
         ),
-        validator: validator,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide.none,
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide.none,
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide.none,
+        ),
+        errorStyle: const TextStyle(
+          color: Colors.white, // Deixa o texto de erro branco para contrastar com o fundo rosa da página
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
