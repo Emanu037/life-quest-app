@@ -30,7 +30,7 @@ class _DiarioPageState extends State<DiarioPage> {
     {'emoji': 'assets/animado.png', 'label': 'Animado(a)'},
     {'emoji': 'assets/relax.png', 'label': 'Relax'},
     {'emoji': 'assets/entediado.png', 'label': 'Entediado(a)'},
-    {'emoji': 'assets/tonto.png', 'label': 'Doidinho(a)'}, // Corrigido nome do asset
+    {'emoji': 'assets/tonto.png', 'label': 'Doidinho(a)'}, 
     {'emoji': 'assets/triste.png', 'label': 'Triste'},
     {'emoji': 'assets/style.png', 'label': 'Style'},
     {'emoji': 'assets/irritado.png', 'label': 'Irritado(a)'},
@@ -94,7 +94,6 @@ class _DiarioPageState extends State<DiarioPage> {
           if (widget.registroParaEditar == null)
             IconButton(
               icon: const Icon(Icons.history, color: Colors.white),
-              // CORREÇÃO: Removido o 'const' antes de MaterialPageRoute
               onPressed: () => Navigator.push(
                 context, 
                 MaterialPageRoute(builder: (context) => const HistoricoPage()),
@@ -115,6 +114,7 @@ class _DiarioPageState extends State<DiarioPage> {
               children: [
                 Text(_dataHora, style: TextStyle(color: marromLeitura, fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 20),
+                
                 // Seletor de Humores
                 SizedBox(
                   height: 95,
@@ -146,22 +146,56 @@ class _DiarioPageState extends State<DiarioPage> {
                   ),
                 ),
                 const SizedBox(height: 25),
-                // Campo de Texto Principal
+                
+                // Campo de Texto Principal (Com Botão de Microfone Integrado)
                 Container(
                   constraints: const BoxConstraints(minHeight: 300),
-                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.9), borderRadius: BorderRadius.circular(20)),
-                  child: TextField(
-                    controller: _textoController,
-                    maxLines: null,
-                    style: TextStyle(color: marromLeitura),
-                    decoration: const InputDecoration(
-                      contentPadding: EdgeInsets.all(20), 
-                      border: InputBorder.none, 
-                      hintText: "Escreva aqui seu dia...",
-                    ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.9), 
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Stack(
+                    children: [
+                      TextField(
+                        controller: _textoController,
+                        maxLines: null,
+                        style: TextStyle(color: marromLeitura),
+                        decoration: const InputDecoration(
+                          contentPadding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 65), 
+                          border: InputBorder.none, 
+                          hintText: "Escreva aqui seu dia...",
+                        ),
+                      ),
+                      // RECURSO NATIVO: Ícone de Microfone posicionado no canto inferior direito
+                      Positioned(
+                        right: 12,
+                        bottom: 12,
+                        child: Consumer<AppViewModel>(
+                          builder: (context, viewModel, child) {
+                            return FloatingActionButton.small(
+                              heroTag: "mic_diario",
+                              backgroundColor: viewModel.estaOuvindo ? Colors.red : tickleMePink,
+                              elevation: 2,
+                              onPressed: () {
+                                viewModel.alternarMicrofone((textoCapturado) {
+                                  setState(() {
+                                    _textoController.text = textoCapturado;
+                                  });
+                                });
+                              },
+                              child: Icon(
+                                viewModel.estaOuvindo ? Icons.stop : Icons.mic,
+                                color: Colors.white,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 20),
+                
                 // Palavra do dia
                 Container(
                   decoration: BoxDecoration(color: Colors.white.withOpacity(0.9), borderRadius: BorderRadius.circular(15)),
@@ -176,6 +210,7 @@ class _DiarioPageState extends State<DiarioPage> {
                   ),
                 ),
                 const SizedBox(height: 30),
+                
                 // Botão Salvar
                 ElevatedButton(
                   onPressed: _tentarSalvar,

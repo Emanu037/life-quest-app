@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http; // HTTP: Importação para a API de Frases
+import 'package:speech_to_text/speech_to_text.dart' as stt; // NATIVO: Microfone / Reconhecimento de Voz
 import '../models/usuario_model.dart';
 import '../database/database_helper.dart';
 
@@ -8,14 +10,23 @@ class AppViewModel extends ChangeNotifier {
   int _pontos = 0;
   bool _isFirstTime = true;
 
+  // --- INTEGRAÇÃO COM API EXTERNA (FRASES) ---
+  String _fraseMotivacional = "Carregando sua dose de motivação diária... ";
+  bool _carregandoFrase = true;
+
   // --- LISTAS DE DADOS ---
   List<Map<String, dynamic>> _historicoDiario = []; 
-  final List<Map<String, dynamic>> _listaTarefas = []; // Lista ativa fica em memória até salvar o dia
+  final List<Map<String, dynamic>> _listaTarefas = []; // Lista activa fica em memória até salvar o dia
   List<Map<String, dynamic>> _historicoTarefas = []; // Carregada do SQLite
   
   // --- SISTEMA DE CUSTOMIZAÇÃO ---
   List<String> guardaRoupa = []; 
   String? roupaAtual; 
+
+  // --- GERENCIAMENTO NATIVO DO MICROFONE (SPEECH TO TEXT) ---
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _estaOuvindo = false;
+  String _textoEscutado = "";
 
   // --- GETTERS ---
   Usuario? get usuarioLogado => _usuarioLogado;
@@ -23,33 +34,114 @@ class AppViewModel extends ChangeNotifier {
   bool get isFirstTime => _isFirstTime;
   String get nomePet => _usuarioLogado?.nome ?? "Floquinho";
   
+  String get fraseMotivacional => _fraseMotivacional;
+  bool get carregandoFrase => _carregandoFrase;
+  
   List<Map<String, dynamic>> get historicoDiario => List.unmodifiable(_historicoDiario);
   List<Map<String, dynamic>> get listaTarefas => _listaTarefas;
   List<Map<String, dynamic>> get historicoTarefas => _historicoTarefas;
 
+  // Getters do Microfone para a View atualizar o estado do botão
+  bool get estaOuvindo => _estaOuvindo;
+  String get textoEscutado => _textoEscutado;
+
   // --- CONSTRUTOR ---
-  // CORRIGIDO: Não carregamos dados globais aqui se eles dependem de um usuário estar logado.
   AppViewModel() {
-    // Se o seu app tiver um sistema de "lembrar login", a busca começaria aqui.
+    
+  }
+
+  // --- FUNÇÕES NATIVAS DO MICROFONE ---
+  Future<void> alternarMicrofone(Function(String) onTextoMudou) async {
+    if (!_estaOuvindo) {
+      // Pede permissão ao sistema e inicializa o motor de voz nativo
+      bool disponivel = await _speech.initialize(
+        onStatus: (status) {
+          if (status == 'notListening' || status == 'done') {
+            _estaOuvindo = false;
+            notifyListeners();
+          }
+        },
+        onError: (error) => print('Erro no microfone: $error'),
+      );
+
+      if (disponivel) {
+        _estaOuvindo = true;
+        _textoEscutado = "";
+        notifyListeners();
+
+        // Começa a escutar o áudio capturado e força o padrão em português
+        _speech.listen(
+          localeId: 'pt_BR',
+          onResult: (result) {
+            _textoEscutado = result.recognizedWords;
+            // Envia o texto decodificado em tempo real para preencher a caixa de texto da View
+            onTextoMudou(_textoEscutado);
+            notifyListeners();
+          },
+        );
+      }
+    } else {
+      // Se clicou enquanto já gravava, encerra a captura manualmente
+      _estaOuvindo = false;
+      _speech.stop();
+      notifyListeners();
+    }
+  }
+
+  // --- INTEGRAÇÃO DIRETA (ZENQUOTES) + TRADUÇÃO VIA GOOGLE TRANSLATE ---
+  Future<void> buscarFraseDiaria() async {
+    _carregandoFrase = true;
+    notifyListeners();
+
+    try {
+      // 1. Busca a frase original em inglês na ZenQuotes
+      final urlZen = Uri.parse('https://zenquotes.io/api/random');
+      final respostaZen = await http.get(urlZen);
+
+      if (respostaZen.statusCode == 200) {
+        final List<dynamic> dadosZen = jsonDecode(respostaZen.body);
+        final String fraseIngles = dadosZen[0]['q'];
+        final String autor = dadosZen[0]['a'];
+
+        // 2. Envia o texto em inglês para a API de tradução do Google
+        final urlTradutor = Uri.parse(
+          'https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt&dt=t&q=${Uri.encodeComponent(fraseIngles)}'
+        );
+        final respostaTraducao = await http.get(urlTradutor);
+
+        if (respostaTraducao.statusCode == 200) {
+          final List<dynamic> dadosTraducao = jsonDecode(respostaTraducao.body);
+          final String fraseEmPortugues = dadosTraducao[0][0][0];
+          
+          _fraseMotivacional = '"$fraseEmPortugues" — $autor';
+        } else {
+          _fraseMotivacional = '"$fraseIngles" — $autor';
+        }
+      } else {
+        _fraseMotivacional = '"Acredite em si mesmo e todo o resto virá naturalmente." — Christian D. Larson';
+      }
+    } catch (e) {
+      _fraseMotivacional = '"Foque no seu progresso hoje, um passo de cada vez!" — Sistema 🐾';
+    } finally {
+      _carregandoFrase = false;
+      notifyListeners();
+    }
   }
 
   // --- CARREGAR DADOS DO SQLITE ---
   Future<void> carregarConfiguracoesIniciais() async {
-    // 1. Carrega os pontos do banco
     final pontosSalvos = await DatabaseHelper.instance.buscarConfiguracao('pontos');
     if (pontosSalvos != null) {
       _pontos = int.parse(pontosSalvos);
     } else {
-      _pontos = 0; // Padrão caso não exista
+      _pontos = 0; 
     }
 
-    // 2. Carrega a roupa que o pet está vestindo
     final roupaSalva = await DatabaseHelper.instance.buscarConfiguracao('roupa_atual');
     if (roupaSalva != null) {
       roupaAtual = roupaSalva == 'null' ? null : roupaSalva;
     }
 
-    // 3. Carrega o guarda-roupa decodificando o texto JSON do banco
     final guardaRoupaSalvo = await DatabaseHelper.instance.buscarConfiguracao('guarda_roupa');
     if (guardaRoupaSalvo != null) {
       List<dynamic> listaJson = jsonDecode(guardaRoupaSalvo);
@@ -69,27 +161,21 @@ class AppViewModel extends ChangeNotifier {
     );
 
     if (resultado.isNotEmpty) {
-      // Agora o modelo mapeia o ID corretamente
       _usuarioLogado = Usuario.fromMap(resultado.first); 
       
-      // SÓ CARREGA AS COISAS SE O LOGIN FOR SUCESSO
       await carregarConfiguracoesIniciais();
       await carregarMissoes();
       return true;
     }
-    return false; // Retorna false se errar a senha ou usuário não existir!
+    return false; 
   }
 
   Future<void> cadastrarUsuario(String nome, String senha) async {
     final db = await DatabaseHelper.instance.database;
-    
-    // CORRIGIDO: Pegamos o ID numérico gerado pelo SQLite
     int novoId = await db.insert('usuarios', {'nome': nome, 'senha': senha});
     
-    // Criamos o usuário com o ID correto na memória do app
     _usuarioLogado = Usuario(id: novoId, nome: nome, senha: senha);
     
-    // Zera os dados locais para o novo usuário criado
     _pontos = 0;
     guardaRoupa = [];
     roupaAtual = null;
@@ -103,18 +189,17 @@ class AppViewModel extends ChangeNotifier {
     _pontos += valor;
     if (_pontos < 0) _pontos = 0; 
     notifyListeners();
-    // Salva o novo valor de pontos no banco de dados
+    
     await DatabaseHelper.instance.salvarConfiguracao('pontos', _pontos.toString());
   }
 
   // --- LOJA E ROUPAS SALVANDO NO BANCO ---
   Future<void> comprarRoupa(String nome, int preco) async {
     if (_pontos >= preco && !guardaRoupa.contains(nome)) {
-      await adicionarPontos(-preco); // Desconta e já salva no banco
+      await adicionarPontos(-preco); 
       guardaRoupa.add(nome);
       notifyListeners();
 
-      // Transforma a lista de roupas compradas em texto e salva no banco
       String guardaRoupaJson = jsonEncode(guardaRoupa);
       await DatabaseHelper.instance.salvarConfiguracao('guarda_roupa', guardaRoupaJson);
     }
@@ -123,11 +208,10 @@ class AppViewModel extends ChangeNotifier {
   Future<void> vestirRoupa(String nome) async {
     roupaAtual = (roupaAtual == nome) ? null : nome;
     notifyListeners();
-    // Salva qual roupa está equipada (ou 'null' se tirou a roupa)
     await DatabaseHelper.instance.salvarConfiguracao('roupa_atual', roupaAtual ?? 'null');
   }
 
-  // --- TAREFAS DIÁRIAS (EM MEMÓRIA ENQUANTO CRIA) ---
+  // --- TAREFAS DIÁRIAS ---
   void adicionarItemTarefa(String titulo) {
     _listaTarefas.add({'titulo': titulo, 'concluido': false});
     notifyListeners();
@@ -155,10 +239,9 @@ class AppViewModel extends ChangeNotifier {
 
   Future<void> salvarListaNoHistorico(String data) async {
     if (_listaTarefas.isNotEmpty) {
-      // Grava no SQLite a lista fechada
       await DatabaseHelper.instance.inserirHistoricoTarefa(data, _listaTarefas);
       _listaTarefas.clear();
-      await carregarMissoes(); // Recarrega do banco para atualizar a tela de histórico
+      await carregarMissoes(); 
     }
   }
 
@@ -172,14 +255,13 @@ class AppViewModel extends ChangeNotifier {
     int listaId = _historicoTarefas[index]['id'];
     final db = await DatabaseHelper.instance.database;
     
-    // Apaga os dados correspondentes no SQLite
     await db.delete('tarefa_itens', where: 'missao_id = ?', whereArgs: [listaId]);
     await db.delete('missoes', where: 'id = ?', whereArgs: [listaId]);
     
     await carregarMissoes();
   }
 
-  // --- REGISTROS DO DIÁRIO (PROVISÓRIO EM MEMÓRIA) ---
+  // --- REGISTROS DO DIÁRIO ---
   void adicionarRegistroDiario({
     required String data, 
     required String humor, 
